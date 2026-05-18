@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Hiring Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+    <div class="page">
+        <header class="hero card">
+            <div>
+                <h1>AI Hiring Agent</h1>
+                <p>Upload resumes, paste the JD, and get a recruiter-friendly ranked shortlist.</p>
+            </div>
+            <div class="hero-badge">Zero Retention</div>
+        </header>
+
+        <section class="card form-card">
+            <div class="form-grid">
+                <div class="field">
+                    <label>Job Description</label>
+                    <textarea id="jd_text" placeholder="Paste the job description here..."></textarea>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label>Upload Resumes</label>
+                        <input id="files" type="file" multiple accept=".pdf,.docx" />
+                        <small>Select multiple files using Ctrl / Cmd.</small>
+                    </div>
+
+                    <div class="field">
+                        <label>Top N</label>
+                        <input id="top_n" type="number" min="1" value="5" />
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button id="analyzeBtn" onclick="analyze()">Analyze Resumes</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="dashboard" class="dashboard hidden">
+            <div id="summaryCards" class="summary-grid"></div>
+
+            <section class="card">
+                <div class="section-head">
+                    <h2>Shortlisted Resumes</h2>
+                    <span id="shortlistCount"></span>
+                </div>
+                <div id="shortlistTabs" class="shortlist-tabs"></div>
+                <div id="shortlistDetail"></div>
+            </section>
+
+            <div class="layout">
+                <aside class="sidebar card">
+                    <h3>Filters</h3>
+
+                    <label>Search</label>
+                    <input id="searchInput" type="text" placeholder="Search by name, skill, company..." />
+
+                    <label>Minimum Score</label>
+                    <input id="scoreFilter" type="range" min="0" max="100" value="0" />
+                    <div class="range-value"><span id="scoreValue">0</span>% and above</div>
+
+                    <label>Skill Filter</label>
+                    <div id="skillFilters" class="chip-cloud"></div>
+
+                    <button class="secondary-btn" onclick="resetFilters()">Reset Filters</button>
+                </aside>
+
+                <main class="results-area">
+                    <div class="results-header">
+                        <h2>All Ranked Candidates</h2>
+                        <span id="resultCount"></span>
+                    </div>
+
+                    <div id="candidateList" class="candidate-list"></div>
+
+                    <details class="raw-json card">
+                        <summary>Technical JSON</summary>
+                        <pre id="rawOutput"></pre>
+                    </details>
+                </main>
+            </div>
+        </section>
+
+        <section id="statusCard" class="card status-card">
+            <p id="statusText">Ready to analyze.</p>
+        </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

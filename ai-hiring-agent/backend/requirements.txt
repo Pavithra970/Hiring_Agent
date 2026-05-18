@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+pydantic
+numpy
+scikit-learn
+sentence-transformers
+PyMuPDF
+python-docx
+spacy
+gliner
