@@ -37,6 +37,7 @@ class ScoreBreakdown(BaseModel):
 class CandidateResult(BaseModel):
     rank: int = 0
     filename: str
+    session_id: str = ""          # ← NEW: used to build /file/{session_id}/{filename}
     extracted_data: ResumeExtractedData
     scores: ScoreBreakdown
     matched_skills: List[str]
@@ -51,3 +52,4 @@ class AnalysisResponse(BaseModel):
     total_candidates: int
     top_candidates: List[CandidateResult]
     all_candidates: List[CandidateResult]
+    session_id: str = ""          # ← NEW: echoed back so JS can build file URLs
