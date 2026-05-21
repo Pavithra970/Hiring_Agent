@@ -26,7 +26,12 @@ function setStatus(msg, isError = false) {
     }
 }
 
-// ─── Data Accessors ──────────────────────────────────────────────────────────
+// Build the backend URL for a resume file
+function fileUrl(sessionId, filename) {
+    return `/file/${encodeURIComponent(sessionId)}/${encodeURIComponent(filename)}`;
+}
+
+// ─── Data Accessors ───────────────────────────────────────────────────────────
 function getAllCandidates() {
     return APP_DATA?.all_candidates || [];
 }
@@ -83,12 +88,10 @@ function uniqueSkills(candidates) {
 function computeSummaryStats(candidates) {
     const total = candidates.length;
     if (!total) return { total: 0, avgScore: 0, topScore: 0, skillCount: 0 };
-
     const scores = candidates.map(c => Number(c.scores?.overall_score || 0));
     const avgScore = scores.reduce((a, b) => a + b, 0) / total;
     const topScore = Math.max(...scores);
     const skillCount = uniqueSkills(candidates).length;
-
     return { total, avgScore, topScore, skillCount };
 }
 
@@ -178,17 +181,15 @@ function renderTopCandidateCard(candidate, index) {
 function renderShortlistDetail(shortlist) {
     const el = document.getElementById("shortlistDetail");
     if (!el) return;
-
-    if (!shortlist.length) {
-        el.innerHTML = "";
-        return;
-    }
+    if (!shortlist.length) { el.innerHTML = ""; return; }
 
     const candidate = shortlist[SELECTED_SHORTLIST_INDEX] || shortlist[0];
     const data = candidate.extracted_data || {};
     const score = Number(candidate.scores?.overall_score || 0);
     const matched = safeArray(candidate.matched_skills);
     const missing = safeArray(candidate.missing_skills);
+    const sid = candidate.session_id || APP_DATA?.session_id || "";
+    const vUrl = fileUrl(sid, candidate.filename);
 
     el.innerHTML = `
         <div class="shortlist-detail">
@@ -221,8 +222,8 @@ function renderShortlistDetail(shortlist) {
             <div class="why-box"><p>${escapeHtml(candidate.match_justification || candidate.summary || "")}</p></div>
 
             <div class="detail-actions">
-                <button class="mini-btn" data-view="${escapeHtml(candidate.filename)}">View</button>
-                <button class="mini-btn ghost-btn" data-download="${escapeHtml(candidate.filename)}">Download</button>
+                <a class="mini-btn" href="${vUrl}" target="_blank" rel="noopener">View</a>
+                <a class="mini-btn ghost-btn" href="${vUrl}" download="${escapeHtml(candidate.filename)}">Download</a>
             </div>
         </div>
     `;
@@ -234,17 +235,19 @@ function renderCandidateCard(candidate, index) {
         const data = candidate.extracted_data || {};
         const score = Number(candidate.scores?.overall_score || 0);
         const skill = Number(candidate.scores?.skill_score || 0);
-        const exp = Number(candidate.scores?.experience_score || 0);
-        const edu = Number(candidate.scores?.education_score || 0);
+        const exp   = Number(candidate.scores?.experience_score || 0);
+        const edu   = Number(candidate.scores?.education_score || 0);
 
-        const matched = safeArray(candidate.matched_skills);
-        const missing = safeArray(candidate.missing_skills);
+        const matched    = safeArray(candidate.matched_skills);
+        const missing    = safeArray(candidate.missing_skills);
         const highlights = safeArray(candidate.highlights);
+        const education  = safeArray(data.education);
+        const projects   = safeArray(data.projects);
+        const certs      = safeArray(data.certifications);
+        const companies  = safeArray(data.companies);
 
-        const education = safeArray(data.education);
-        const projects = safeArray(data.projects);
-        const certs = safeArray(data.certifications);
-        const companies = safeArray(data.companies);
+        const sid  = candidate.session_id || APP_DATA?.session_id || "";
+        const vUrl = fileUrl(sid, candidate.filename);
 
         return `
             <article class="candidate-card">
@@ -309,8 +312,8 @@ function renderCandidateCard(candidate, index) {
                 </ul>
 
                 <div class="detail-actions">
-                    <button class="mini-btn" data-view="${escapeHtml(candidate.filename)}">View</button>
-                    <button class="mini-btn ghost-btn" data-download="${escapeHtml(candidate.filename)}">Download</button>
+                    <a class="mini-btn" href="${vUrl}" target="_blank" rel="noopener">View</a>
+                    <a class="mini-btn ghost-btn" href="${vUrl}" download="${escapeHtml(candidate.filename)}">Download</a>
                 </div>
 
                 <details>
@@ -385,44 +388,31 @@ function renderRankedCandidates(candidates) {
     list.appendChild(grid);
 }
 
-// ─── Wire file action buttons (View / Download) ───────────────────────────────
-function wireFileActions(container) {
-    if (!container) return;
-    container.querySelectorAll("[data-view]").forEach(btn => {
-        btn.addEventListener("click", () => {
-            alert(`View action for: ${btn.getAttribute("data-view")}\n(Implement file preview as needed)`);
-        });
-    });
-    container.querySelectorAll("[data-download]").forEach(btn => {
-        btn.addEventListener("click", () => {
-            alert(`Download action for: ${btn.getAttribute("data-download")}\n(Implement file download as needed)`);
-        });
-    });
-}
+// No-op — kept so nothing breaks if called elsewhere
+function wireFileActions(_container) {}
 
 // ─── Main Dashboard Render ────────────────────────────────────────────────────
 function renderDashboard() {
     if (!APP_DATA) return;
 
     const allCandidates = getAllCandidates();
-    const filtered = getFilteredCandidates();
+    const filtered  = getFilteredCandidates();
     const shortlist = getTopCandidates();
-    const stats = computeSummaryStats(allCandidates);
+    const stats     = computeSummaryStats(allCandidates);
 
     buildSummaryCards(stats);
     buildSkillFilters(uniqueSkills(allCandidates));
 
-    const shortlistTabs = document.getElementById("shortlistTabs");
+    const shortlistTabs  = document.getElementById("shortlistTabs");
     const shortlistCount = document.getElementById("shortlistCount");
-    const list = document.getElementById("candidateList");
     const count = document.getElementById("resultCount");
-    const raw = document.getElementById("rawOutput");
+    const raw   = document.getElementById("rawOutput");
 
     if (shortlistCount) shortlistCount.textContent = `${shortlist.length} shortlisted resume(s)`;
 
     if (shortlistTabs) {
         shortlistTabs.innerHTML = shortlist.length
-            ? shortlist.map((candidate, index) => renderTopCandidateCard(candidate, index)).join("")
+            ? shortlist.map((c, i) => renderTopCandidateCard(c, i)).join("")
             : `<div class="shortlist-tab"><div class="tab-name">No shortlisted candidates</div></div>`;
 
         shortlistTabs.querySelectorAll("[data-shortlist-index]").forEach(btn => {
@@ -439,10 +429,7 @@ function renderDashboard() {
 
     renderRankedCandidates(filtered);
 
-    wireFileActions(list);
-
     if (raw) raw.textContent = JSON.stringify(APP_DATA, null, 2);
-
     const rawDetails = raw?.closest("details");
     if (rawDetails) rawDetails.open = false;
 }
@@ -451,11 +438,9 @@ function renderDashboard() {
 document.addEventListener("DOMContentLoaded", () => {
     const searchInput = document.getElementById("searchInput");
     const scoreFilter = document.getElementById("scoreFilter");
-    const scoreValue = document.getElementById("scoreValue");
+    const scoreValue  = document.getElementById("scoreValue");
 
-    if (searchInput) {
-        searchInput.addEventListener("input", () => renderDashboard());
-    }
+    if (searchInput) searchInput.addEventListener("input", () => renderDashboard());
 
     if (scoreFilter) {
         scoreFilter.addEventListener("input", () => {
@@ -467,17 +452,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ─── Analyze ──────────────────────────────────────────────────────────────────
 async function analyze() {
-    const jdText = document.getElementById("jd_text")?.value?.trim();
+    const jdText     = document.getElementById("jd_text")?.value?.trim();
     const filesInput = document.getElementById("files");
-    const topN = parseInt(document.getElementById("top_n")?.value || "5", 10);
-    const btn = document.getElementById("analyzeBtn");
-    const dashboard = document.getElementById("dashboard");
+    const topN       = parseInt(document.getElementById("top_n")?.value || "5", 10);
+    const btn        = document.getElementById("analyzeBtn");
+    const dashboard  = document.getElementById("dashboard");
 
     if (!jdText) {
         setStatus("⚠️ Please enter a job description.", true);
         return;
     }
-
     if (!filesInput?.files?.length) {
         setStatus("⚠️ Please upload at least one resume file.", true);
         return;
@@ -495,10 +479,7 @@ async function analyze() {
     }
 
     try {
-        const response = await fetch("/analyze", {
-            method: "POST",
-            body: formData,
-        });
+        const response = await fetch("/analyze", { method: "POST", body: formData });
 
         if (!response.ok) {
             const errText = await response.text();
@@ -512,7 +493,6 @@ async function analyze() {
 
         if (dashboard) dashboard.classList.remove("hidden");
         renderDashboard();
-
         setStatus(`✅ Analysis complete. ${data.total_candidates} candidate(s) ranked.`);
     } catch (err) {
         console.error("Analyze error:", err);
